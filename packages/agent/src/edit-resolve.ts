@@ -79,6 +79,22 @@ export function lineOf(content: string, index: number): number {
 // Ordered loosest-last. The caller judges each candidate, so an ambiguous
 // strategy falls through to the next rather than guessing.
 
+/**
+ * Slice bounds for candidate text from `content`, stripping any trailing carriage
+ * return so CRLF line endings are not accidentally swallowed into the match.
+ */
+function sliceLines(
+  content: string,
+  startOffset: number,
+  endOffset: number
+): string {
+  let end = Math.max(startOffset, endOffset);
+  if (end > startOffset && content[end - 1] === "\r") {
+    end--;
+  }
+  return content.slice(startOffset, end);
+}
+
 /** The text, verbatim. */
 const exact: Strategy = function* (_content, find) {
   yield find;
@@ -112,7 +128,7 @@ const unicodeNormalized: Strategy = function* (content, find) {
     const block = contentLines.slice(i, i + findLineCount).join("\n");
     if (normalizeUnicode(block) !== target) continue;
     const startOffset = offsetOfLine(content, i);
-    yield content.slice(startOffset, startOffset + block.length);
+    yield sliceLines(content, startOffset, startOffset + block.length);
   }
 };
 
@@ -147,7 +163,7 @@ const lineTrimmed: Strategy = function* (content, find) {
     // Rebuild the exact source span so the caller splices real text.
     const startOffset = offsetOfLine(content, i);
     const endOffset = offsetOfLine(content, i + findLines.length) - 1;
-    yield content.slice(startOffset, Math.max(startOffset, endOffset));
+    yield sliceLines(content, startOffset, endOffset);
   }
 };
 
@@ -225,7 +241,7 @@ const blockAnchor: Strategy = function* (content, find) {
 
     const startOffset = offsetOfLine(content, candidate.start);
     const endOffset = offsetOfLine(content, candidate.end + 1) - 1;
-    yield content.slice(startOffset, Math.max(startOffset, endOffset));
+    yield sliceLines(content, startOffset, endOffset);
   }
 };
 
@@ -242,7 +258,11 @@ const whitespaceNormalized: Strategy = function* (content, find) {
   for (let i = 0; i < contentLines.length; i++) {
     if (normalize(contentLines[i]!) === target) {
       const startOffset = offsetOfLine(content, i);
-      yield content.slice(startOffset, startOffset + contentLines[i]!.length);
+      yield sliceLines(
+        content,
+        startOffset,
+        startOffset + contentLines[i]!.length
+      );
     }
   }
 
@@ -251,7 +271,7 @@ const whitespaceNormalized: Strategy = function* (content, find) {
     const block = contentLines.slice(i, i + findLineCount).join("\n");
     if (normalize(block) !== target) continue;
     const startOffset = offsetOfLine(content, i);
-    yield content.slice(startOffset, startOffset + block.length);
+    yield sliceLines(content, startOffset, startOffset + block.length);
   }
 };
 
@@ -279,7 +299,7 @@ const indentationFlexible: Strategy = function* (content, find) {
     const block = contentLines.slice(i, i + findLineCount).join("\n");
     if (dedent(block) !== target) continue;
     const startOffset = offsetOfLine(content, i);
-    yield content.slice(startOffset, startOffset + block.length);
+    yield sliceLines(content, startOffset, startOffset + block.length);
   }
 };
 
@@ -339,7 +359,7 @@ const contextAnchored: Strategy = function* (content, find) {
 
     const startOffset = offsetOfLine(content, i);
     const endOffset = offsetOfLine(content, end + 1) - 1;
-    yield content.slice(startOffset, Math.max(startOffset, endOffset));
+    yield sliceLines(content, startOffset, endOffset);
   }
 };
 
