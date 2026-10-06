@@ -153,6 +153,21 @@ describe("applying edits", () => {
     expect(details.patch).toContain("x = 2");
     expect(details.firstChangedLine).toBe(1);
   });
+
+  it("preserves CRLF line endings on a relaxed match", async () => {
+    const file = fixture(
+      "crlf.ts",
+      "function f() {\r\n  const a = 1\r\n  return a\r\n}\r\n"
+    );
+    const result = await edit(file, [
+      { oldText: "    const a = 1", newText: "  const a = 2" },
+    ]);
+
+    expect(result.isError).toBeFalsy();
+    expect(read(file)).toBe(
+      "function f() {\r\n  const a = 2\r\n  return a\r\n}\r\n"
+    );
+  });
 });
 
 describe("replaceAll", () => {

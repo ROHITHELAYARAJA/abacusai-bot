@@ -179,6 +179,56 @@ describe("recovering from a near-miss", () => {
   });
 });
 
+describe("files with CRLF line endings", () => {
+  it("does not include trailing carriage return in single-line relaxed matches", () => {
+    const content = "function f() {\r\n  return 1\r\n}\r\n";
+    const found = matched(content, "    return 1");
+
+    expect(found.relaxed).toBe(true);
+    expect(found.spans).toEqual(["  return 1"]);
+  });
+
+  it("preserves CRLF line endings when spliced", () => {
+    const content = "function f() {\r\n  return 1\r\n}\r\n";
+    const result = resolveEdit(content, "    return 1", "  return 2", false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const out = spliceRanges(content, [
+      {
+        start: result.ranges[0]!.start,
+        end: result.ranges[0]!.end,
+        text: "  return 2",
+      },
+    ]);
+    expect(out).toBe("function f() {\r\n  return 2\r\n}\r\n");
+  });
+
+  it("keeps CRLF intact in multiline indentation-flexible matches", () => {
+    const content = "class C {\r\n    def a(self):\r\n        return 1\r\n";
+    const found = matched(content, "def a(self):\n    return 1");
+
+    expect(found.relaxed).toBe(true);
+    expect(found.spans).toEqual(["    def a(self):\r\n        return 1"]);
+  });
+
+  it("strips trailing carriage return in unicode-normalized CRLF matches", () => {
+    const content = "const label = 'hi'\r\n";
+    const found = matched(content, "const label = ‘hi’");
+
+    expect(found.strategy).toBe("unicode-normalized");
+    expect(found.spans).toEqual(["const label = 'hi'"]);
+  });
+
+  it("strips trailing carriage return in whitespace-normalized CRLF matches", () => {
+    const content = "const  a   =    1\r\n";
+    const found = matched(content, "const a = 1");
+
+    expect(found.relaxed).toBe(true);
+    expect(found.spans).toEqual(["const  a   =    1"]);
+  });
+});
+
 describe("the strategies that only win in narrow cases", () => {
   // These sit late in the cascade and earlier strategies claim most inputs, so
   // it is worth pinning a shape each one actually wins, or a later refactor
